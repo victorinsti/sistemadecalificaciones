@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Trujillo Digital Hub</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg,#0f172a,#1e3a8a);
+    color: white;
+}
+header {
+    background: #2563eb;
+    padding: 15px;
+    text-align: center;
+    font-size: 22px;
+}
+.container { padding: 20px; }
+
+table {
+    width: 100%;
+    background: white;
+    color: black;
+    border-collapse: collapse;
+}
+th { background: #1e40af; color: white; }
+td, th { padding: 6px; text-align: center; }
+
+input { width: 50px; }
+</style>
+</head>
+
+<body>
+
+<header>Trujillo Digital Hub - Sistema Profesional</header>
+
+<div class="container">
+    <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
+
+    <input 
+        type="text" 
+        id="buscarMatricula" 
+        placeholder="Buscar por matrícula..."
+        oninput="filtrar()"
+        style="padding:8px; width:200px;"
+    >
+
+    <select id="filtroMateria" onchange="filtrar()" style="padding:8px;">
+        <option value="Todas">Todas las materias</option>
+    </select>
+
+</div>
+<table>
+<thead>
+<tr>
+<th>Matrícula</th>
+<th>Nombre</th>
+<th>Materia</th>
+<th>P1</th>
+<th>P2</th>
+<th>P3</th>
+<th>Promedio</th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, getDocs,
+  updateDoc, doc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCQa5lpfZ2owUu47CBO6Pe5-wOymUX7wa0",
+  authDomain: "campusconnect-9ac9c.firebaseapp.com",
+  projectId: "campusconnect-9ac9c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 🔥 50 MATERIAS TECNOLÓGICAS
+const materias = [
+"Filosofía","Matemáticas","Historia","Inglés","Cálculo",
+"Programación Web","POO","Algoritmos","Inteligencia Artificial",
+"Base de Datos","Redes","Ciberseguridad","Machine Learning",
+"Data Science","Frontend","Backend","DevOps","Cloud Computing",
+"UX/UI","Big Data","Robótica","IoT","Blockchain","Sistemas Operativos",
+"Arquitectura de Software","Testing","QA","Git","Linux","Python",
+"Java","Kotlin","C++","JavaScript","SQL","NoSQL","APIs",
+"Microservicios","Docker","Kubernetes","Scrum","Agile",
+"Análisis de Sistemas","Matemática Discreta","Compiladores",
+"Visión Computacional","NLP","Seguridad Informática"
+];
+
+// 🔥 NOMBRES ÚNICOS
+const nombres = ["Luis","Ana","Carlos","Sofía","Miguel","Valeria","Jorge","Daniela","Pedro","Camila"];
+const nombres2 = ["Andrés","María","José","Fernanda","Diego","Lucía","Raúl","Elena","Hugo","Paola"];
+const apellidos = ["López","Ramírez","Torres","Sánchez","Cruz","Herrera","Ruiz","Flores","Ortiz","Vega"];
+
+// 🚀 GENERAR DATOS
+async function generar() {
+
+    const tabla = document.getElementById("tabla");
+    console.log("🚀 Iniciando generación...");
+
+    try {
+        const snap = await getDocs(collection(db,"alumnos"));
+
+        if (!snap.empty) {
+            console.log("⚠ Ya existen datos, no se generarán más");
+            return;
+        }
+
+        const nombres = ["Luis","Ana","Carlos","Sofía","Miguel","Valeria","Jorge","Daniela","Pedro","Camila",
+        "Ricardo","Laura","Fernando","Mariana","Diego","Lucía","Raúl","Elena","Hugo","Paola"];
+
+        const nombres2 = ["Andrés","María","José","Fernanda","Diego","Lucía","Raúl","Elena","Hugo","Paola",
+        "Iván","Claudia","Roberto","Adriana","Sergio","Natalia","Óscar","Patricia","Emilio","Gabriela"];
+
+        const apellidos = ["López","Ramírez","Torres","Sánchez","Cruz","Herrera","Ruiz","Flores","Ortiz","Vega",
+        "Morales","Rojas","Castro","Navarro","Silva","Mendoza","Guerrero","Reyes","Vargas","Campos"];
+
+        const materias = ["Filosofía","Matemáticas","Historia","Inglés","Cálculo",
+        "Programación Web","POO","Algoritmos","IA","Base de Datos","Redes","Ciberseguridad"];
+
+        let usados = new Set();
+        let total = 0;
+
+        for (let i = 0; i < 200; i++) {
+
+            let nombre;
+
+            do {
+                nombre =
+                nombres[Math.floor(Math.random()*nombres.length)] + " " +
+                nombres2[Math.floor(Math.random()*nombres2.length)] + " " +
+                apellidos[Math.floor(Math.random()*apellidos.length)] + " " +
+                apellidos[Math.floor(Math.random()*apellidos.length)];
+
+            } while (usados.has(nombre));
+
+            usados.add(nombre);
+
+            // 👉 3 materias por alumno (más rápido y seguro)
+            for (let j = 0; j < 3; j++) {
+
+                let materia = materias[Math.floor(Math.random()*materias.length)];
+
+                try {
+
+                    await addDoc(collection(db,"alumnos"), {
+                        matricula: "TDH" + (1000 + total),
+                        nombre: nombre,
+                        materia: materia,
+                        p1: 0,
+                        p2: 0,
+                        p3: 0,
+                        promedio: 0
+                    });
+
+                    total++;
+                    console.log("✔ Guardado:", total);
+
+                } catch (err) {
+                    console.error("❌ Error guardando:", err);
+                }
+            }
+        }
+
+        console.log("🔥 TERMINADO: ", total, " registros");
+
+    } catch (error) {
+        console.error("💥 ERROR GENERAL:", error);
+    }
+}
+
+// 📊 CARGAR TABLA
+let datosGlobales = [];
+
+async function cargar() {
+
+    const tabla = document.getElementById("tabla");
+    tabla.innerHTML = "";
+
+    const snap = await getDocs(collection(db,"alumnos"));
+
+    datosGlobales = [];
+
+    snap.forEach(docSnap => {
+        let d = docSnap.data();
+        d.id = docSnap.id;
+        datosGlobales.push(d);
+    });
+
+    llenarMaterias();
+    renderTabla(datosGlobales);
+}
+function llenarMaterias() {
+    const select = document.getElementById("filtroMateria");
+
+    let materias = new Set();
+
+    datosGlobales.forEach(d => materias.add(d.materia));
+
+    select.innerHTML = `<option value="Todas">Todas las materias</option>`;
+
+    materias.forEach(m => {
+        select.innerHTML += `<option value="${m}">${m}</option>`;
+    });
+}
+function filtrar() {
+
+    let texto = document.getElementById("buscarMatricula").value.toLowerCase();
+    let materia = document.getElementById("filtroMateria").value;
+
+    let filtrados = datosGlobales.filter(d => {
+
+        let coincideMatricula = String(d.matricula).toLowerCase().includes(texto);
+        let coincideMateria = (materia === "Todas" || d.materia === materia);
+
+        return coincideMatricula && coincideMateria;
+    });
+
+    renderTabla(filtrados);
+}
+window.filtrar = filtrar;
+function renderTabla(datos) {
+
+    const tabla = document.getElementById("tabla");
+    tabla.innerHTML = "";
+
+    // 🔥 ORDENAR POR PROMEDIO
+    datos.sort((a,b) => b.promedio - a.promedio);
+
+    datos.forEach(d => {
+
+        let row = document.createElement("tr");
+
+        row.innerHTML = `
+        <td>${d.matricula}</td>
+        <td>${d.nombre}</td>
+        <td>${d.materia}</td>
+        <td><input value="${d.p1}" onchange="guardar('${d.id}', this)"></td>
+        <td><input value="${d.p2}" onchange="guardar('${d.id}', this)"></td>
+        <td><input value="${d.p3}" onchange="guardar('${d.id}', this)"></td>
+        <td>${d.promedio.toFixed(1)}</td>
+        `;
+
+        tabla.appendChild(row);
+    });
+}
+// 💾 GUARDAR
+window.guardar = async (id, input) => {
+
+    let row = input.parentElement.parentElement;
+    let inputs = row.querySelectorAll("input");
+
+    let p1 = parseFloat(inputs[0].value) || 0;
+    let p2 = parseFloat(inputs[1].value) || 0;
+    let p3 = parseFloat(inputs[2].value) || 0;
+
+    let promedio = (p1+p2+p3)/3;
+
+    await updateDoc(doc(db,"alumnos",id), {
+        p1,p2,p3,promedio
+    });
+
+    cargar();
+}
+
+// INICIO
+await generar();
+cargar();
+
+</script>
+
+</body>
+</html>
