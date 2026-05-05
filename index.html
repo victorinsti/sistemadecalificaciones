@@ -265,14 +265,20 @@ window.guardar = async (id, input) => {
     let p2 = parseFloat(inputs[1].value) || 0;
     let p3 = parseFloat(inputs[2].value) || 0;
 
-    let promedio = (p1+p2+p3)/3;
+    let promedio = (p1 + p2 + p3) / 3;
 
-    await updateDoc(doc(db,"alumnos",id), {
-        p1,p2,p3,promedio
-    });
+    try {
+        await updateDoc(doc(db,"alumnos",id), {
+            p1, p2, p3, promedio
+        });
 
-    cargar();
-}
+        // 🔥 SOLO ACTUALIZA LA CELDA, NO TODA LA TABLA
+        row.cells[6].textContent = promedio.toFixed(1);
+
+    } catch (error) {
+        console.error("Error guardando:", error);
+    }
+};
 
 // INICIO
 await generar();
