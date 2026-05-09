@@ -221,9 +221,26 @@ input{
             >
                 Cerrar Sesión
             </button>
+            <button
+    onclick="unificarAlumnosDuplicados()"
+    class="btn-download"
+    style="background:#dc2626;"
+>
+    Unificar Alumnos Duplicados
+</button>
 
         </div>
-
+<div class="glass-card" style="background: rgba(255,255,255,0.1); margin-bottom: 20px; padding: 20px;">
+    <h3>Registrar Nuevo Alumno / Materia</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="text" id="newNombre" placeholder="Nombre completo">
+        <input type="text" id="newMatricula" placeholder="Matrícula">
+        <input type="text" id="newMateria" placeholder="Materia (ej. Inglés)">
+        <button onclick="registrarAlumno()" class="btn-download" style="background: #10b981;">
+            Registrar
+        </button>
+    </div>
+</div>
         <table>
 
             <thead>
@@ -327,7 +344,11 @@ import {
     collection,
     getDocs,
     updateDoc,
-    doc
+    doc,
+    addDoc,
+    query,
+    where,
+    deleteDoc
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -373,22 +394,25 @@ window.login = async () => {
 
     }
 
-    const encontrado =
+    const encontrados =
         datosGlobales.filter(
-            a => a.matricula === val
+            a =>
+            String(a.matricula).trim()
+            ===
+            String(val).trim()
         );
 
-    if(encontrado.length > 0){
-
-        alumnoLogueado = encontrado;
-
-        abrirPortalAlumno();
-
-    }else{
+    if(encontrados.length === 0){
 
         alert("Matrícula no encontrada");
+        return;
 
     }
+
+    // UN SOLO ALUMNO CON MUCHAS MATERIAS
+    alumnoLogueado = encontrados;
+
+    abrirPortalAlumno();
 
 };
 
@@ -418,6 +442,7 @@ function abrirPortalAlumno(){
     .getElementById("portal-alumno")
     .style.display = "block";
 
+    // AGRUPAR POR MATRÍCULA
     const alumno = alumnoLogueado[0];
 
     document
@@ -430,7 +455,7 @@ function abrirPortalAlumno(){
 
     cards.innerHTML = "";
 
-    alumnoLogueado.forEach(m => {
+    alumnoLogueado.forEach(materia => {
 
         cards.innerHTML += `
 
@@ -442,11 +467,11 @@ function abrirPortalAlumno(){
                     text-transform:uppercase;
                     font-weight:700;
                 ">
-                    ${m.materia}
+                    ${materia.materia}
                 </div>
 
                 <span class="score-value">
-                    ${m.promedio.toFixed(1)}
+                    ${Number(materia.promedio).toFixed(1)}
                 </span>
 
                 <div style="
@@ -457,9 +482,9 @@ function abrirPortalAlumno(){
                     font-size:.8rem;
                 ">
 
-                    <span>P1 ${m.p1}</span>
-                    <span>P2 ${m.p2}</span>
-                    <span>P3 ${m.p3}</span>
+                    <span>P1 ${materia.p1}</span>
+                    <span>P2 ${materia.p2}</span>
+                    <span>P3 ${materia.p3}</span>
 
                 </div>
 
@@ -492,27 +517,27 @@ function renderTabla(datos){
 
                 <td>
                     <input
-                        value="${d.p1}"
+                        value="${d.p1 || 0}"
                         onchange="guardar('${d.id}',this)"
                     >
                 </td>
 
                 <td>
                     <input
-                        value="${d.p2}"
+                        value="${d.p2 || 0}"
                         onchange="guardar('${d.id}',this)"
                     >
                 </td>
 
                 <td>
                     <input
-                        value="${d.p3}"
+                        value="${d.p3 || 0}"
                         onchange="guardar('${d.id}',this)"
                     >
                 </td>
 
                 <td>
-                    ${d.promedio.toFixed(1)}
+                    ${Number(d.promedio || 0).toFixed(1)}
                 </td>
 
             </tr>
@@ -761,6 +786,256 @@ window.generarBoletaPDF = () => {
 
     doc.save(`Boleta_${alumno.matricula}.pdf`);
 };
+// --- FUNCIÓN PARA CREAR ALUMNO (NUEVA) ---
+window.registrarAlumno = async () => {
+
+    const nombre =
+        document.getElementById("newNombre")
+        .value.trim();
+
+    const matricula =
+        document.getElementById("newMatricula")
+        .value.trim();
+
+    const materia =
+        document.getElementById("newMateria")
+        .value.trim();
+
+    if(!nombre || !matricula || !materia){
+
+        alert("Completa todos los campos");
+        return;
+
+    }
+
+    try{
+
+        // BUSCAR SI YA EXISTE ESA MATRICULA
+        const q = query(
+            collection(db,"alumnos"),
+            where("matricula","==",matricula)
+        );
+
+        const snap = await getDocs(q);
+
+        // VALIDAR NOMBRE DIFERENTE CON MISMA MATRICULA
+        if(!snap.empty){
+
+            const alumnoExistente = snap.docs[0].data();
+
+            if(
+                alumnoExistente.nombre.trim().toLowerCase()
+                !==
+                nombre.trim().toLowerCase()
+            ){
+
+                alert(
+                    "Esta matrícula ya pertenece a otro alumno"
+                );
+
+                return;
+
+            }
+
+            // VALIDAR SI YA TIENE ESA MATERIA
+            const materiaExiste = snap.docs.find(docu =>
+                docu.data().materia.trim().toLowerCase()
+                ===
+                materia.trim().toLowerCase()
+            );
+
+            if(materiaExiste){
+
+                alert(
+                    "El alumno ya tiene registrada esa materia"
+                );
+
+                return;
+
+            }
+
+        }else{
+
+            // VALIDAR SI EL NOMBRE YA EXISTE CON OTRA MATRICULA
+            const qNombre = query(
+                collection(db,"alumnos"),
+                where("nombre","==",nombre)
+            );
+
+            const snapNombre = await getDocs(qNombre);
+
+            if(!snapNombre.empty){
+
+                alert(
+                    "Ese alumno ya existe con otra matrícula"
+                );
+
+                return;
+
+            }
+
+        }
+
+        // CREAR NUEVA MATERIA PARA EL MISMO ALUMNO
+        await addDoc(
+            collection(db,"alumnos"),
+            {
+                nombre,
+                matricula,
+                materia,
+                p1:0,
+                p2:0,
+                p3:0,
+                promedio:0
+            }
+        );
+
+        alert("Registro exitoso");
+
+        document.getElementById("newNombre").value = "";
+        document.getElementById("newMatricula").value = "";
+        document.getElementById("newMateria").value = "";
+
+        location.reload();
+
+    }catch(error){
+
+        console.log(error);
+
+        alert("Error al registrar");
+
+    }
+
+};
+
+window.unificarAlumnosDuplicados = async () => {
+
+    const confirmar = confirm(
+        "Se unificarán alumnos repetidos con el mismo nombre. ¿Continuar?"
+    );
+
+    if(!confirmar) return;
+
+    try{
+
+        const snap = await getDocs(
+            collection(db,"alumnos")
+        );
+
+        const alumnos = snap.docs.map(docu => ({
+            id: docu.id,
+            ...docu.data()
+        }));
+
+        // AGRUPAR POR NOMBRE
+        const grupos = {};
+
+        alumnos.forEach(alumno => {
+
+            const nombre = String(
+                alumno.nombre || ""
+            )
+            .trim()
+            .toLowerCase();
+
+            if(!nombre) return;
+
+            if(!grupos[nombre]){
+
+                grupos[nombre] = [];
+
+            }
+
+            grupos[nombre].push(alumno);
+
+        });
+
+        // RECORRER CADA GRUPO
+        for(const nombre in grupos){
+
+            const grupo = grupos[nombre];
+
+            // SI SOLO HAY UNO NO HACER NADA
+            if(grupo.length <= 1) continue;
+
+            // USAR PRIMERA MATRICULA
+            const matriculaBase = String(
+                grupo[0].matricula || ""
+            ).trim();
+
+            const materiasUsadas = [];
+
+            for(const alumno of grupo){
+
+                const materia = String(
+                    alumno.materia || ""
+                ).trim();
+
+                // SI LA MATERIA YA EXISTE -> BORRAR DUPLICADO
+                if(materiasUsadas.includes(materia)){
+
+                    try{
+
+                        await deleteDoc(
+                            doc(db,"alumnos",alumno.id)
+                        );
+
+                    }catch(e){
+
+                        console.log(
+                            "Error eliminando:",
+                            e
+                        );
+
+                    }
+
+                    continue;
+
+                }
+
+                materiasUsadas.push(materia);
+
+                // ACTUALIZAR MATRICULA
+                try{
+
+                    await updateDoc(
+                        doc(db,"alumnos",alumno.id),
+                        {
+                            matricula: matriculaBase
+                        }
+                    );
+
+                }catch(e){
+
+                    console.log(
+                        "Error actualizando:",
+                        e
+                    );
+
+                }
+
+            }
+
+        }
+
+        alert(
+            "Alumnos unificados correctamente"
+        );
+
+        location.reload();
+
+    }catch(error){
+
+        console.log(error);
+
+        alert(
+            "Error general al unificar alumnos"
+        );
+
+    }
+
+};
 </script>
+
 
 </body>

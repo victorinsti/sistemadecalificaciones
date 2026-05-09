@@ -251,15 +251,12 @@ import {
     getFirestore,
     collection,
     getDocs,
+    updateDoc,
+    doc,
     addDoc,
     query,
     where,
-    orderBy,
-    serverTimestamp,
-
-onSnapshot,
-    updateDoc,
-    doc
+    deleteDoc
 }
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -338,11 +335,18 @@ function cargarAlumnos(){
         a => a.materia === claseActual
     );
 
-    const list = document.getElementById("alumnos-list");
+    const list =
+        document.getElementById("alumnos-list");
 
     list.innerHTML = "";
 
-    compañeros.forEach(c => {
+    // EVITAR NOMBRES DUPLICADOS
+    const nombresUnicos =
+        [...new Set(
+            compañeros.map(c => c.nombre)
+        )];
+
+    nombresUnicos.forEach(nombre => {
 
         list.innerHTML += `
             <div style="
@@ -351,7 +355,6 @@ function cargarAlumnos(){
                 gap:10px;
                 margin-bottom:10px;
             ">
-           
 
                 <div style="
                     width:10px;
@@ -360,7 +363,7 @@ function cargarAlumnos(){
                     background:#10b981;
                 "></div>
 
-                ${c.nombre}
+                ${nombre}
 
             </div>
         `;
