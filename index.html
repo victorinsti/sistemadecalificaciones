@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -663,66 +664,103 @@ window.entrarClassroomAdmin = () => {
 };
 
 window.generarBoletaPDF = () => {
-
-    if(!alumnoLogueado) return;
+    if (!alumnoLogueado) return;
 
     const { jsPDF } = window.jspdf;
-
     const doc = new jsPDF();
-
     const alumno = alumnoLogueado[0];
+    
+    // --- 1. CONFIGURACIÓN DE COLORES ---
+    const azulPrimario = [15, 23, 42]; // Slate 900
+    const azulAcento = [37, 99, 235];   // Royal Blue
 
+    // --- 2. ENCABEZADO ---
+    doc.setFillColor(...azulPrimario);
+    doc.rect(0, 0, 210, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
+    doc.text("TRUJILLO DIGITAL HUB", 105, 20, { align: "center" });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("SISTEMA DE GESTIÓN ACADÉMICA", 105, 28, { align: "center" });
 
-    doc.text(
-        "TRUJILLO DIGITAL HUB",
-        105,
-        20,
-        {align:"center"}
-    );
-
+    // --- 3. INFO ALUMNO ---
+    doc.setTextColor(...azulPrimario);
     doc.setFontSize(12);
+    doc.text("REPORTE OFICIAL DE RENDIMIENTO", 20, 50);
+    
+    doc.setDrawColor(...azulAcento);
+    doc.setLineWidth(0.5);
+    doc.line(20, 52, 190, 52);
 
-    doc.text(
-        `Alumno: ${alumno.nombre}`,
-        20,
-        40
-    );
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.text(`ALUMNO: ${alumno.nombre.toUpperCase()}`, 20, 62);
+    doc.text(`MATRÍCULA: ${alumno.matricula}`, 20, 68);
+    doc.text(`FECHA DE EMISIÓN: ${new Date().toLocaleDateString()}`, 140, 62);
 
-    doc.text(
-        `Matrícula: ${alumno.matricula}`,
-        20,
-        50
-    );
-
-    const filas =
-        alumnoLogueado.map(m => [
-            m.materia,
-            m.p1,
-            m.p2,
-            m.p3,
-            m.promedio.toFixed(1)
-        ]);
+    // --- 4. TABLA ---
+    const filas = alumnoLogueado.map(m => [
+        m.materia.toUpperCase(),
+        m.p1.toFixed(1),
+        m.p2.toFixed(1),
+        m.p3.toFixed(1),
+        m.promedio.toFixed(1)
+    ]);
 
     doc.autoTable({
-        startY:70,
-        head:[[
-            "Materia",
-            "P1",
-            "P2",
-            "P3",
-            "Promedio"
-        ]],
-        body:filas
+        startY: 75,
+        head: [["MATERIA", "P1", "P2", "P3", "FINAL"]],
+        body: filas,
+        theme: 'striped',
+        headStyles: { fillColor: azulPrimario, halign: 'center' },
+        bodyStyles: { halign: 'center', fontSize: 9 },
+        columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 80 } }
     });
 
-    doc.save(
-        `Boleta_${alumno.matricula}.pdf`
-    );
+    // --- 5. SECCIÓN DE FIRMAS (DINÁMICA) ---
+    // Calculamos el final de la tabla para poner las firmas abajo
+    const finalY = doc.lastAutoTable.finalY + 45; 
 
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.2);
+
+    // Línea Firma Maestro
+    doc.line(30, finalY, 85, finalY);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("ING. VICTOR TRUJILLO", 57.5, finalY + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Firma del Titular", 57.5, finalY + 10, { align: "center" });
+
+    // Línea Firma Director
+    doc.line(125, finalY, 180, finalY);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("DIRECCIÓN ACADÉMICA", 152.5, finalY + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Sello y Firma Autorizada", 152.5, finalY + 10, { align: "center" });
+
+    // Elemento decorativo: Sello digital pequeño
+    doc.setDrawColor(...azulAcento);
+    doc.setLineWidth(0.5);
+    doc.circle(105, finalY - 5, 8);
+    doc.setFontSize(6);
+    doc.setTextColor(...azulAcento);
+    doc.text("TDH", 105, finalY - 6, { align: "center" });
+    doc.text("VALIDADO", 105, finalY - 3, { align: "center" });
+
+    // --- 6. PIE DE PÁGINA ---
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(7);
+    const hash = Math.random().toString(36).substring(2, 15).toUpperCase();
+    doc.text(`ID de Validación Digital: ${hash} | Trujillo Digital Hub © 2026`, 105, 285, { align: "center" });
+
+    doc.save(`Boleta_${alumno.matricula}.pdf`);
 };
-
 </script>
 
 </body>
-</html>
