@@ -208,6 +208,15 @@ input{
                     Todas las materias
                 </option>
             </select>
+            <button
+    onclick="descargarListaPDF()"
+    class="btn-download"
+    style="background:#7c3aed;"
+>
+    Descargar Lista PDF
+</button>
+
+
 <button
     onclick="entrarClassroomAdmin()"
     class="btn-download"
@@ -227,6 +236,13 @@ input{
     style="background:#dc2626;"
 >
     Unificar Alumnos Duplicados
+</button>
+<button
+    onclick="eliminarClase()"
+    class="btn-download"
+    style="background:#dc2626;"
+>
+    Eliminar Clase
 </button>
 
         </div>
@@ -253,6 +269,7 @@ input{
                     <th>P2</th>
                     <th>P3</th>
                     <th>Promedio</th>
+                    <th>Acciones</th>
                 </tr>
 
             </thead>
@@ -539,7 +556,24 @@ function renderTabla(datos){
                 <td>
                     ${Number(d.promedio || 0).toFixed(1)}
                 </td>
+<td>
 
+    <button
+        onclick="darDeBaja('${d.matricula}','${d.nombre}')"
+        style="
+            background:#dc2626;
+            color:white;
+            border:none;
+            padding:8px 12px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:600;
+        "
+    >
+        Dar de Baja
+    </button>
+
+</td>
             </tr>
 
         `;
@@ -1031,6 +1065,232 @@ window.unificarAlumnosDuplicados = async () => {
         alert(
             "Error general al unificar alumnos"
         );
+
+    }
+
+};
+window.descargarListaPDF = async () => {
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF("landscape");
+
+    const materia =
+        document.getElementById("filtroMateria").value;
+
+    const alumnos = datosGlobales.filter(a =>
+        materia === "Todas"
+        || a.materia === materia
+    );
+
+    const filas = alumnos.map(a => [
+
+        a.matricula,
+        a.nombre,
+        a.materia,
+        a.p1 || 0,
+        a.p2 || 0,
+        a.p3 || 0,
+        Number(a.promedio || 0).toFixed(1)
+
+    ]);
+
+    // ENCABEZADO
+    doc.setFontSize(18);
+    doc.text(
+        "DIRECCIÓN GENERAL DE TRUJILLO DIGITAL HUB",
+        148,
+        15,
+        { align:"center" }
+    );
+
+    doc.setFontSize(12);
+
+    doc.setFontSize(11);
+
+doc.text(
+    `Materia: ${materia}`,
+    14,
+    40
+);
+
+doc.text(
+    `Profesor: Ing. Victor Trujillo`,
+    14,
+    48
+);
+
+doc.text(
+    `Periodo: Enero-Junio 2026`,
+    14,
+    56
+);
+
+doc.text(
+    `Fecha: ${new Date().toLocaleDateString()}`,
+    230,
+    40
+);
+
+    doc.text(
+        `Fecha: ${new Date().toLocaleDateString()}`,
+        230,
+        40
+    );
+
+    doc.autoTable({
+
+        startY: 50,
+
+        head:[[
+            "Matrícula",
+            "Alumno",
+            "Materia",
+            "P1",
+            "P2",
+            "P3",
+            "Promedio"
+        ]],
+
+        body: filas,
+
+        theme:"grid",
+
+        styles:{
+            fontSize:9,
+            halign:"center"
+        },
+
+        headStyles:{
+            fillColor:[30,64,175]
+        }
+
+    });
+
+    // FIRMAS
+    const finalY =
+        doc.lastAutoTable.finalY + 30;
+
+    doc.line(40, finalY, 100, finalY);
+    doc.text(
+        "Firma del Docente",
+        70,
+        finalY + 6,
+        { align:"center" }
+    );
+
+    doc.line(180, finalY, 240, finalY);
+    doc.text(
+        "Control Escolar",
+        210,
+        finalY + 6,
+        { align:"center" }
+    );
+
+    doc.save(`Lista_${materia}.pdf`);
+
+};
+window.eliminarClase = async () => {
+
+    const materia =
+        document.getElementById("filtroMateria").value;
+
+    if(
+        !materia ||
+        materia === "Todas"
+    ){
+        alert("Selecciona una materia");
+        return;
+    }
+
+    const confirmar = confirm(
+        `¿Eliminar completamente la clase ${materia}?`
+    );
+
+    if(!confirmar) return;
+
+    try{
+
+        // BORRAR ALUMNOS DE ESA MATERIA
+        const q = query(
+            collection(db,"alumnos"),
+            where("materia","==",materia)
+        );
+
+        const snap = await getDocs(q);
+
+        for(const documento of snap.docs){
+
+            await deleteDoc(
+                doc(db,"alumnos",documento.id)
+            );
+
+        }
+
+        // BORRAR POSTS DEL CLASSROOM
+        const qPosts = query(
+            collection(db,"classroom_posts"),
+            where("clase","==",materia)
+        );
+
+        const postsSnap = await getDocs(qPosts);
+
+        for(const post of postsSnap.docs){
+
+            await deleteDoc(
+                doc(db,"classroom_posts",post.id)
+            );
+
+        }
+
+        alert("Clase eliminada correctamente");
+
+        location.reload();
+
+    }catch(error){
+
+        console.log(error);
+
+        alert("Error eliminando clase");
+
+    }
+
+};
+window.darDeBaja = async (matricula,nombre) => {
+
+    const confirmar = confirm(
+        `¿Eliminar COMPLETAMENTE a ${nombre}?`
+    );
+
+    if(!confirmar) return;
+
+    try{
+
+        const q = query(
+            collection(db,"alumnos"),
+            where("matricula","==",matricula)
+        );
+
+        const snap = await getDocs(q);
+
+        for(const documento of snap.docs){
+
+            await deleteDoc(
+                doc(db,"alumnos",documento.id)
+            );
+
+        }
+
+        alert("Alumno dado de baja");
+
+        await cargarDatos();
+
+        renderTabla(datosGlobales);
+
+    }catch(error){
+
+        console.log(error);
+
+        alert("Error al eliminar");
 
     }
 
